@@ -20,9 +20,25 @@
 //timer2 will interrupt at 8kHz
 
 //storage variables
-volatile boolean toggle0 = 0;
+volatile boolean toggle0 = 1;
 volatile boolean toggle1 = 0;
 volatile boolean toggle2 = 0;
+
+volatile uint32_t currTime = 0; 
+
+
+uint32_t deltat = 0, sum = 0, time_sec = 0, time_sec2 = 0;          // integration interval for both filter schemes
+uint32_t lastUpdate = 0, firstUpdate = 0; // used to calculate integration interval
+uint32_t Now = 0;                         // used to calculate integration interval
+
+uint32_t periodTime = 2000; 
+uint32_t duty = 10;
+uint32_t fall = 0;
+
+uint32_t shift = 0;
+
+uint32_t phase12 = 50;
+
 
 void setup(){
   
@@ -32,35 +48,38 @@ void setup(){
   pinMode(10, OUTPUT);
   pinMode(13, OUTPUT);
 
-cli();//stop interrupts
+  time_sec = 0.0;
+  toggle0 = 1;
 
+cli();//stop interrupts
+/*
 //set timer0 interrupt at 2kHz
   TCCR0A = 0;// set entire TCCR2A register to 0
   TCCR0B = 0;// same for TCCR2B
   TCNT0  = 0;//initialize counter value to 0
   // set compare match register for 2khz increments
-  OCR0A = 1;//124;// = (16*10^6) / (2000*64) - 1 (must be <256)
+  OCR0A = 2;//124;// = (16*10^6) / (2000*64) - 1 (must be <256)
   // turn on CTC mode
   TCCR0A |= (1 << WGM01);
   // Set CS01 and CS00 bits for 64 prescaler
   TCCR0B |= (1 <<CS10);//(1 << CS01) | (1 << CS00);   
   // enable timer compare interrupt
   TIMSK0 |= (1 << OCIE0A);
-
-  
+*/
+/*  
 //set timer1 interrupt at 1Hz
   TCCR1A = 0;// set entire TCCR1A register to 0
   TCCR1B = 0;// same for TCCR1B
   TCNT1  = 0;//initialize counter value to 0
   // set compare match register for 1hz increments
-  OCR1A = 16;//15624;// = (16*10^6) / (1*1024) - 1 (must be <65536)
+  OCR1A = 1;//15624;// = (16*10^6) / (1*1024) - 1 (must be <65536)
   // turn on CTC mode
   TCCR1B |= (1 << WGM12);
   // Set CS12 and CS10 bits for 1024 prescaler
-  TCCR1B |= (1 << CS12) | (1 << CS10);  
+  TCCR1B |= /*(1 << CS12) | *-/(1 << CS10);  
   // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
-
+*/
 /*
 //set timer2 interrupt at 8kHz
   TCCR2A = 0;// set entire TCCR2A register to 0
@@ -78,11 +97,12 @@ cli();//stop interrupts
 
 sei();//allow interrupts
 
-}//end setup
 
+}//end setup
+/*
 ISR(TIMER0_COMPA_vect){//timer0 interrupt 2kHz toggles pin 8
 //generates pulse wave of frequency 2kHz/2 = 1kHz (takes two cycles for full wave- toggle high then toggle low)
-  if (toggle0){
+  /*if (toggle0){
     digitalWrite(10,HIGH);
     //PORTB = 0x40;
     toggle0 = 0;
@@ -91,21 +111,27 @@ ISR(TIMER0_COMPA_vect){//timer0 interrupt 2kHz toggles pin 8
     digitalWrite(10,LOW);
     //PORTB |= ~0x40;
     toggle0 = 1;
-  }
-}
+  }* /
 
+  currTime ++;
+  if (currTime == 0xFFFFFFFF) {currTime = 0; }
+}
+*/
+/*
 ISR(TIMER1_COMPA_vect){//timer1 interrupt 1Hz toggles pin 13 (LED)
 //generates pulse wave of frequency 1Hz/2 = 0.5kHz (takes two cycles for full wave- toggle high then toggle low)
   if (toggle1){
     digitalWrite(9,HIGH);
+    OCR1A = 10;
     toggle1 = 0;
   }
   else{
     digitalWrite(9,LOW);
+    OCR1A = 1;
     toggle1 = 1;
   }
 }
-
+*/
 /*
 ISR(TIMER2_COMPA_vect){//timer1 interrupt 8kHz toggles pin 9
 //generates pulse wave of frequency 8kHz/2 = 4kHz (takes two cycles for full wave- toggle high then toggle low)
@@ -123,4 +149,80 @@ ISR(TIMER2_COMPA_vect){//timer1 interrupt 8kHz toggles pin 9
 
 void loop(){
   //do other things here
+  //
+  // read buttons and adjust frequency.
+  // 
+  shift = periodTime * phase12 / 100;
+
+
+  Now = micros();
+  deltat = (Now - lastUpdate);
+  //deltat = (deltat/1000000.0f); // set integration time by time elapsed since last filter update
+  lastUpdate = Now;
+
+  time_sec += deltat;
+  time_sec2 += deltat;
+   
+  fall = periodTime * duty / 100;
+
+  if ((time_sec > 0) && (time_sec < fall))
+  {
+    //if (toggle0 == 1) 
+    //{
+      digitalWrite(9, HIGH);
+      //PORTB |= 0x01;
+      
+      //toggle0 = 0;
+    //}
+    
+    
+  } 
+  else 
+  if ((time_sec >= fall) && (time_sec < periodTime ))
+  {
+    //if (toggle0 == 0)
+    //{
+      digitalWrite (9, LOW);
+      //PORTB &= ~0x01;
+      
+            //toggle0 = 1;
+    //}
+    
+  }
+  else 
+  if (time_sec >= periodTime)
+  {
+    time_sec = 0;
+    time_sec2 = shift;
+  }
+
+
+  if ( time_sec2 > 0 && time_sec2 < fall )
+  {
+    //if (toggle0 == 1) 
+    //{
+      //digitalWrite(9, HIGH);
+      PORTB |= 0x40;
+      
+      //toggle0 = 0;
+    //}
+  } 
+  else 
+  if ( time_sec2 >= fall && time_sec2 < periodTime  ) 
+  {
+    //if (toggle0 == 0)
+    //{
+      //digitalWrite (9, LOW);
+      PORTB &= ~0x40;
+      
+            //toggle0 = 1;
+    //}
+    
+  }else 
+  if (time_sec2 > periodTime)
+  {
+    time_sec2 = 0;
+  }
+
+  
 }
