@@ -30,14 +30,28 @@ volatile uint32_t currTime = 0;
 uint32_t deltat = 0, sum = 0, time_sec = 0, time_sec2 = 0;          // integration interval for both filter schemes
 uint32_t lastUpdate = 0, firstUpdate = 0; // used to calculate integration interval
 uint32_t Now = 0;                         // used to calculate integration interval
+uint32_t Now2 = 0;
+uint32_t shift_dt = 0;
 
-uint32_t periodTime = 2000; 
-uint32_t duty = 10;
+uint32_t periodTime = 20000; 
+uint32_t duty = 15;
 uint32_t fall = 0;
 
 uint32_t shift = 0;
 
 uint32_t phase12 = 50;
+
+boolean enable_shim = 0;
+
+uint32_t sync_phase = 4000;
+uint32_t sync_pulse = 4000;
+
+
+volatile int count= 0;
+volatile int count1 = 0;
+int ncount = 1;
+
+int a0,a1,a2,a3;
 
 
 void setup(){
@@ -48,8 +62,10 @@ void setup(){
   pinMode(10, OUTPUT);
   pinMode(13, OUTPUT);
 
-  time_sec = 0.0;
+   time_sec = 0.0;
   toggle0 = 1;
+
+  Serial.begin(9600);
 
 cli();//stop interrupts
 /*
@@ -146,47 +162,75 @@ ISR(TIMER2_COMPA_vect){//timer1 interrupt 8kHz toggles pin 9
 }
 */
 
+void print_a1(){
+  a0 = analogRead(A0);
+  a1 = analogRead(A1);
+  Serial.print("A0=");
+  Serial.print(a0);
+  Serial.print("A1=");
+  Serial.print(a1);
+
+}
+
+void print_a2(){
+  a0 = analogRead(A2);
+  a1 = analogRead(A3);
+  Serial.print("A2=");
+  Serial.print(a0);
+  Serial.print("A3=");
+  Serial.println(a1);
+
+}
+
 
 void loop(){
   //do other things here
   //
   // read buttons and adjust frequency.
   // 
-  shift = periodTime * phase12 / 100;
+  shift = periodTime * phase12 / 100 + 2*shift_dt;
 
 
   Now = micros();
   deltat = (Now - lastUpdate);
-  //deltat = (deltat/1000000.0f); // set integration time by time elapsed since last filter update
   lastUpdate = Now;
-
   time_sec += deltat;
   time_sec2 += deltat;
    
   fall = periodTime * duty / 100;
 
+  print_a1();
+
   if ((time_sec > 0) && (time_sec < fall))
   {
-    //if (toggle0 == 1) 
-    //{
-      digitalWrite(9, HIGH);
-      //PORTB |= 0x01;
+    if (toggle0 == 0 || !enable_shim) 
+      {
+        digitalWrite(9, HIGH);
+        if (count1 > ncount){
+          toggle0 = 1;
+          count1 = 0;
+        }else
+        {
+          count1++;
+        }
+      } else {
+        digitalWrite(9, LOW);
+        if (count1 > ncount){
+          toggle0 = 0;
+          count1 = 0;
+        } else
+        {
+          count1++;
+        }
+      }
       
-      //toggle0 = 0;
-    //}
-    
-    
   } 
   else 
   if ((time_sec >= fall) && (time_sec < periodTime ))
   {
-    //if (toggle0 == 0)
-    //{
-      digitalWrite (9, LOW);
-      //PORTB &= ~0x01;
-      
-            //toggle0 = 1;
-    //}
+    toggle0 = 0;
+    count1 = 0;
+    digitalWrite (9, LOW);
     
   }
   else 
@@ -196,24 +240,64 @@ void loop(){
     time_sec2 = shift;
   }
 
+  // syncro pulse
+  if ( (time_sec > sync_phase ) && (time_sec < sync_phase + sync_pulse) )  {
+    digitalWrite(8,HIGH);
+  }
+  else 
+  if ( (time_sec >= sync_phase + sync_pulse) && (time_sec2 <= sync_phase )){
+    digitalWrite(8, LOW );
+  }else 
+  if ( (time_sec2 > sync_phase ) && (time_sec2 < sync_phase + sync_pulse) )  {
+    digitalWrite(8,HIGH);
+  }
+  else{
+    digitalWrite(8, LOW );
+  }
 
+
+
+
+  // second pulse
+  Now2 = micros();
+  shift_dt = Now2 - Now;
+
+  print_a2();
   if ( time_sec2 > 0 && time_sec2 < fall )
   {
-    //if (toggle0 == 1) 
-    //{
-      //digitalWrite(9, HIGH);
-      PORTB |= 0x40;
-      
-      //toggle0 = 0;
-    //}
+    if (toggle1 == 0 || !enable_shim ) 
+    {
+      digitalWrite(10, HIGH);
+      //PORTB |= 0x40;
+      if (count > ncount){
+        toggle1 = 1;
+        count = 0;
+      }else
+      {
+        count++;
+      }
+    }
+    else
+    {
+      if (count >ncount){
+        toggle1 = 0;
+        count = 0;
+      }else
+      {
+        count++;
+      }
+       //PORTB &= ~0x40;
+       digitalWrite(10, LOW); 
+    }
   } 
   else 
   if ( time_sec2 >= fall && time_sec2 < periodTime  ) 
   {
+    toggle1 = 0;
     //if (toggle0 == 0)
     //{
-      //digitalWrite (9, LOW);
-      PORTB &= ~0x40;
+      digitalWrite (10, LOW);
+      //PORTB &= ~0x40;
       
             //toggle0 = 1;
     //}
@@ -222,7 +306,9 @@ void loop(){
   if (time_sec2 > periodTime)
   {
     time_sec2 = 0;
+    count = 0;
   }
 
+  
   
 }
