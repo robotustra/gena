@@ -33,8 +33,8 @@ uint32_t Now = 0;                         // used to calculate integration inter
 uint32_t Now2 = 0;
 uint32_t shift_dt = 0;
 
-uint32_t periodTime = 20000; 
-uint32_t duty = 15;
+uint32_t periodTime = 20000; // период осциллятора
+uint32_t duty = 15;           // 15 % 
 uint32_t fall = 0;
 
 uint32_t shift = 0;
@@ -42,6 +42,7 @@ uint32_t shift = 0;
 uint32_t phase12 = 50;
 
 boolean enable_shim = 0;
+int shim = 1;
 
 uint32_t sync_phase = 4000;
 uint32_t sync_pulse = 4000;
@@ -49,9 +50,14 @@ uint32_t sync_pulse = 4000;
 
 volatile int count= 0;
 volatile int count1 = 0;
-int ncount = 1;
+int ncount = 0;
 
-int a0,a1,a2,a3;
+int a0,a1,a2,a3; // A3 - это частота вверх-вниз левый джойстик. A2 - скважность вправо-влево левый джойстик.
+int r0=0,r1=0,r2=0,r3=0;
+int inc0 = 100;
+
+#define  CNT  10
+
 
 
 void setup(){
@@ -61,6 +67,7 @@ void setup(){
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(13, OUTPUT);
+  pinMode(2, INPUT_PULLUP);
 
    time_sec = 0.0;
   toggle0 = 1;
@@ -165,21 +172,186 @@ ISR(TIMER2_COMPA_vect){//timer1 interrupt 8kHz toggles pin 9
 void print_a1(){
   a0 = analogRead(A0);
   a1 = analogRead(A1);
-  Serial.print("A0=");
-  Serial.print(a0);
-  Serial.print("A1=");
-  Serial.print(a1);
+  /*Serial.print("P=");
+  Serial.print(sync_pulse);
+  Serial.print("F=");
+  Serial.println(sync_phase);
+*/
+  if (a0 > 700) 
+  {
+    inc0 = 5;
+    
+    if (r0 > CNT)
+    {
+      // уменьшаем длительность импульса
+      if (sync_pulse >= (100+inc0)) //500 Hz
+      {
+        sync_pulse-=inc0;
+        r0 = 0;
+      }
+    }else
+    {
+      r0++; 
+    }
+  } else
+  if (a0 < 300) 
+  {
+    inc0 = 5;
+    
+    if (r0 > CNT)
+    {
+      // увеличиваем период
+      if (sync_pulse <= (periodTime/4 - inc0) ) // 1Hz 
+      {
+        sync_pulse +=inc0;
+        r0 = 0;
+      }
+    }else
+    {
+      r0++; 
+    }
+  }else {
+    r0 = 0;
+  }
+  //Serial.print("D=");
+  //Serial.print(duty);
+
+  // Период
+  if (a1 > 700) 
+  {
+    inc0 = 5;
+    //if (a1 > 1000) inc0 = 50;
+    if (r1 > CNT)
+    {
+      // уменьшаем период
+      if (sync_phase >= (0+inc0)) //500 Hz
+      {
+        sync_phase -= inc0;
+        r1 = 0;
+      }
+    }else
+    {
+      r1++; 
+    }
+  } else
+  if (a1 < 300) 
+  {
+    inc0 = 5;
+    //if (a1 < 24) inc0 = 50;
+    if (r1 > CNT)
+    {
+      // увеличиваем период
+      if ( sync_phase <= (periodTime/2-inc0) ) // 1Hz 
+      {
+        sync_phase += inc0;
+        r1 = 0;
+      }
+    }else
+    {
+      r1++; 
+    }
+  }else {
+    r1 = 0;
+  }
+
 
 }
 
 void print_a2(){
   a0 = analogRead(A2);
   a1 = analogRead(A3);
-  Serial.print("A2=");
+  /*Serial.print("A2=");
   Serial.print(a0);
   Serial.print("A3=");
-  Serial.println(a1);
+  Serial.println(a1);*/
 
+  // Скважность
+
+  if (a0 > 700) 
+  {
+    inc0 = 1;
+    
+    if (r2 > 8*CNT)
+    {
+      // уменьшаем скважность
+      if (duty >= (4+inc0)) //500 Hz
+      {
+        duty-=inc0;
+        r2 = 0;
+      }
+    }else
+    {
+      r2++; 
+    }
+  } else
+  if (a0 < 300) 
+  {
+    inc0 = 1;
+    
+    if (r2 > 8*CNT)
+    {
+      // увеличиваем период
+      if (duty <= (48-inc0) ) // 1Hz 
+      {
+        duty +=inc0;
+        r2 = 0;
+      }
+    }else
+    {
+      r2++; 
+    }
+  }else {
+    r2 = 0;
+  }
+  //Serial.print("D=");
+  //Serial.print(duty);
+
+  // Период
+  if (a1 > 700) 
+  {
+    inc0 = 5;
+    if (a1 > 1000) inc0 = 50;
+    if (r3 > CNT)
+    {
+      // уменьшаем период
+      if (periodTime >= (20000+inc0)) //500 Hz
+      {
+        periodTime-=inc0;
+        r3 = 0;
+      }
+    }else
+    {
+      r3++; 
+    }
+  } else
+  if (a1 < 300) 
+  {
+    inc0 = 5;
+    if (a1 < 24) inc0 = 50;
+    if (r3 > CNT)
+    {
+      // увеличиваем период
+      if (periodTime <= (1000000-inc0) ) // 1Hz 
+      {
+        periodTime+=inc0;
+        r3 = 0;
+      }
+    }else
+    {
+      r3++; 
+    }
+  }else {
+    r3 = 0;
+  }
+
+  //Serial.print("P=");
+  //Serial.println(periodTime);
+}
+
+void check_shim(){
+  shim = digitalRead(2);
+  if (shim) enable_shim = 0;
+  else enable_shim = 1;
 }
 
 
@@ -188,7 +360,7 @@ void loop(){
   //
   // read buttons and adjust frequency.
   // 
-  shift = periodTime * phase12 / 100 + 2*shift_dt;
+  shift = periodTime * phase12 / 100 + 0.75*(double)shift_dt;
 
 
   Now = micros();
@@ -198,7 +370,7 @@ void loop(){
   time_sec2 += deltat;
    
   fall = periodTime * duty / 100;
-
+  check_shim();
   print_a1();
 
   if ((time_sec > 0) && (time_sec < fall))
@@ -255,14 +427,14 @@ void loop(){
     digitalWrite(8, LOW );
   }
 
-
-
+  print_a2();
 
   // second pulse
   Now2 = micros();
   shift_dt = Now2 - Now;
 
-  print_a2();
+
+
   if ( time_sec2 > 0 && time_sec2 < fall )
   {
     if (toggle1 == 0 || !enable_shim ) 
