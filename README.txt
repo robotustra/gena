@@ -10,4 +10,4 @@
 Сделать основной генератор на 1000 Гц,
 Синхронный с ним генератор 50 герц, и еще один канал синхронизируюший импульс на 50 герц, синхронный со вторым генератором.
 
- 
+/home/kolik/arduino-1.8.5/hardware/tools/avr/bin/avrdude -C/home/kolik/arduino-1.8.5/hardware/tools/avr/etc/avrdude.conf -v -patmega32u4 -cavr109 -P/dev/ttyACM0 -b57600 -D -Uflash:w:/tmp/arduino_build_922762/gen.ino.hex:i 

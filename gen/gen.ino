@@ -33,7 +33,7 @@ uint32_t Now = 0;                         // used to calculate integration inter
 uint32_t Now2 = 0;
 uint32_t shift_dt = 0;
 
-uint32_t periodTime = 20000; // период осциллятора
+uint32_t periodTime = 16000; // период осциллятора
 uint32_t duty = 15;           // 15 % 
 uint32_t fall = 0;
 
@@ -89,7 +89,7 @@ cli();//stop interrupts
   // enable timer compare interrupt
   TIMSK0 |= (1 << OCIE0A);
 */
-/*  
+/*
 //set timer1 interrupt at 1Hz
   TCCR1A = 0;// set entire TCCR1A register to 0
   TCCR1B = 0;// same for TCCR1B
@@ -214,7 +214,7 @@ void print_a1(){
     r0 = 0;
   }
   //Serial.print("D=");
-  //Serial.print(duty);
+  //Serial.println(duty);
 
   // Период
   if (a1 > 700) 
@@ -304,7 +304,7 @@ void print_a2(){
     r2 = 0;
   }
   //Serial.print("D=");
-  //Serial.print(duty);
+  //Serial.println(duty);
 
   // Период
   if (a1 > 700) 
